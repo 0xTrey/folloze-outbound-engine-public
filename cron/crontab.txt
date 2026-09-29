@@ -1,0 +1,18 @@
+# Folloze Outbound Engine crontab
+# Install: crontab -e and paste below, or: crontab cron/crontab.txt
+# Logs: ~/Projects/folloze-outbound-engine/logs/
+
+ENGINE=$HOME/Projects/folloze-outbound-engine
+
+# Pull Smartlead events (replies, bounces) — hourly at :17
+17 * * * * source $HOME/.zshrc 2>/dev/null; cd $HOME/Projects/folloze-outbound-engine && FOLLOZE_TRIGGER_SOURCE=cron python3 main.py pull_events >> logs/pull_events.log 2>&1
+
+# Daily pipeline: sync → reveal → enrich → build → push — Mon-Fri 7:03 AM primary, 10:07 AM fallback
+3 7 * * 1-5 FOLLOZE_TRIGGER_SOURCE=cron bash $ENGINE/scripts/daily_outbound.sh >> $ENGINE/logs/pipeline.log 2>&1
+7 10 * * 1-5 FOLLOZE_TRIGGER_SOURCE=cron bash $ENGINE/scripts/daily_outbound.sh >> $ENGINE/logs/pipeline.log 2>&1
+
+# Deliverability (bounces/unsubscribes → suppressions) — daily 2:11 AM
+11 2 * * * source $HOME/.zshrc 2>/dev/null; cd $HOME/Projects/folloze-outbound-engine && FOLLOZE_TRIGGER_SOURCE=cron python3 main.py deliverability >> logs/deliverability.log 2>&1
+
+# Engine watchdog — every 30 minutes, diagnose stale jobs and safely retry only idempotent jobs
+25,55 * * * * source $HOME/.zshrc 2>/dev/null; cd $HOME/Projects/folloze-outbound-engine && FOLLOZE_TRIGGER_SOURCE=cron python3 main.py engine_watchdog --auto-retry-safe >> logs/engine_watchdog.log 2>&1

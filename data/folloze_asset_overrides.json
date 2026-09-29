@@ -1,0 +1,26 @@
+{
+  "sample-case-study": {
+    "content_type": "case_study",
+    "summary": "Example proof asset used to show how content metadata can guide follow-up personalization.",
+    "themes": ["pipeline_proof", "sales_alignment"],
+    "followup_angle": "Use when a buyer consumes proof-oriented content and the next email should connect the proof to a concrete operating problem.",
+    "cta_type": "case_study",
+    "title_aliases": ["Example Case Study"]
+  },
+  "sample-product-demo": {
+    "content_type": "product_demo",
+    "summary": "Example product demo asset used to show how a viewed content item can map to topic interest.",
+    "themes": ["campaign_automation", "personalization_at_scale"],
+    "followup_angle": "Use when a buyer spends meaningful time with product-demonstration content.",
+    "cta_type": "demo",
+    "title_aliases": ["Example Product Demo"]
+  },
+  "sample-playbook": {
+    "content_type": "playbook",
+    "summary": "Example educational asset used to represent top-of-funnel or tactical learning content.",
+    "themes": ["campaign_strategy", "abm_execution"],
+    "followup_angle": "Use when a buyer appears to be learning the category or building an internal plan.",
+    "cta_type": "education",
+    "title_aliases": ["Example Playbook"]
+  }
+}

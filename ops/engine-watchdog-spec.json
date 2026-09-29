@@ -1,0 +1,172 @@
+{
+  "canary_name": "engine_watchdog",
+  "repo_root": ".",
+  "jobs": [
+    {
+      "job_name": "daily_outbound",
+      "scheduler": {
+        "kind": "cron",
+        "label": "daily_outbound",
+        "schedule_local": "Mon-Fri business-day schedule",
+        "definition_path": "cron/crontab.txt",
+        "stdout_log": "logs/launchd_stdout.log",
+        "stderr_log": "logs/launchd_stderr.log"
+      },
+      "success_signal": {
+        "kind": "pipeline_log",
+        "max_age_minutes": 1560,
+        "description": "Expected dated pipeline log with daily_outbound: done marker",
+        "log_path": "logs/pipeline_{target_date}.log",
+        "success_marker": "daily_outbound: done",
+        "warning_marker": "Zero enrollments detected"
+      },
+      "execution_evidence": {
+        "process_match": "scripts/daily_outbound.sh",
+        "app_logs": [
+          "logs/pipeline_{target_date}.log",
+          "logs/launchd_stdout.log",
+          "logs/launchd_stderr.log"
+        ]
+      },
+      "diagnostics": {
+        "default_category": "no_run",
+        "default_recommended_fix": "Check launchd state, the launchd stderr log, and Python or venv path resolution before re-running the daily pipeline."
+      },
+      "recovery": {
+        "enabled": false,
+        "retry_command": [
+          "bash",
+          "scripts/daily_outbound.sh"
+        ]
+      }
+    },
+    {
+      "job_name": "pull_events",
+      "scheduler": {
+        "kind": "cron",
+        "schedule_local": "Hourly, minute 17 America/Chicago",
+        "definition_path": "cron/crontab.txt"
+      },
+      "success_signal": {
+        "kind": "job_run",
+        "max_age_minutes": 90,
+        "description": "Expected successful pull_events job run within the freshness window"
+      },
+      "execution_evidence": {
+        "process_match": "main.py pull_events",
+        "app_logs": [
+          "logs/jobs/pull_events_{target_date}.log",
+          "logs/pull_events.log"
+        ]
+      },
+      "diagnostics": {
+        "default_category": "no_run",
+        "default_recommended_fix": "Check cron, Smartlead connectivity, and the pull_events job log."
+      },
+      "recovery": {
+        "enabled": true,
+        "retry_allowed_when": {
+          "no_active_process": true,
+          "idempotent_or_resumable": true
+        },
+        "retry_command": [
+          "python3",
+          "main.py",
+          "pull_events"
+        ]
+      }
+    },
+    {
+      "job_name": "deliverability",
+      "scheduler": {
+        "kind": "cron",
+        "schedule_local": "Daily 02:11 America/Chicago",
+        "definition_path": "cron/crontab.txt"
+      },
+      "success_signal": {
+        "kind": "job_run",
+        "max_age_minutes": 1560,
+        "description": "Expected successful deliverability job run within the freshness window"
+      },
+      "execution_evidence": {
+        "process_match": "main.py deliverability",
+        "app_logs": [
+          "logs/jobs/deliverability_{target_date}.log",
+          "logs/deliverability.log"
+        ]
+      },
+      "diagnostics": {
+        "default_category": "no_run",
+        "default_recommended_fix": "Check cron and the deliverability job log. If Smartlead is degraded, pause retry until API health returns."
+      },
+      "recovery": {
+        "enabled": true,
+        "retry_allowed_when": {
+          "no_active_process": true,
+          "idempotent_or_resumable": true
+        },
+        "retry_command": [
+          "python3",
+          "main.py",
+          "deliverability"
+        ]
+      }
+    }
+  ],
+  "freshness_checks": [
+    {
+      "name": "salesforce_folloze_signal_events",
+      "sql": "SELECT MAX(ingested_timestamp_utc) AS last_seen FROM signal_events WHERE source = 'salesforce_folloze_task'",
+      "max_age_minutes": 2160,
+      "soft": false
+    },
+    {
+      "name": "folloze_people_csv_signal_events",
+      "sql": "SELECT MAX(ingested_timestamp_utc) AS last_seen FROM signal_events WHERE source = 'folloze_people_csv'",
+      "max_age_minutes": 2880,
+      "soft": true
+    },
+    {
+      "name": "contact_signal_state",
+      "sql": "SELECT MAX(updated_at) AS last_seen FROM contact_signal_state",
+      "max_age_minutes": 2160,
+      "soft": false
+    },
+    {
+      "name": "outbound_briefs",
+      "sql": "SELECT MAX(created_at) AS last_seen FROM outbound_briefs",
+      "max_age_minutes": 2160,
+      "soft": false
+    },
+    {
+      "name": "asset_catalog",
+      "sql": "SELECT MAX(updated_at) AS last_seen FROM asset_catalog",
+      "max_age_minutes": 10080,
+      "soft": true
+    }
+  ],
+  "metric_checks": [
+    {
+      "name": "resolved_top_asset_count_3d",
+      "sql": "SELECT COUNT(*)::double precision AS metric_value FROM contact_signal_state WHERE updated_at >= NOW() - INTERVAL '3 days' AND top_asset_id IS NOT NULL",
+      "min_value": 1,
+      "soft": false
+    },
+    {
+      "name": "passing_outbound_briefs_3d",
+      "sql": "SELECT COUNT(*)::double precision AS metric_value FROM outbound_briefs WHERE created_at >= NOW() - INTERVAL '3 days' AND gate_status = 'passed'",
+      "min_value": 1,
+      "soft": false
+    },
+    {
+      "name": "outbound_brief_pass_rate_3d",
+      "sql": "SELECT COALESCE(AVG(CASE WHEN gate_status = 'passed' THEN 1.0 ELSE 0.0 END), 0)::double precision AS metric_value FROM outbound_briefs WHERE created_at >= NOW() - INTERVAL '3 days'",
+      "min_value": 0.2,
+      "soft": true
+    }
+  ],
+  "reporting": {
+    "incident_dir": "logs/incidents/engine-watchdog/{target_date}",
+    "incident_slug_prefix": "engine-watchdog"
+  }
+}

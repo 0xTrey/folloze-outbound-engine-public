@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Folloze Outbound Engine Architecture Brief</title>
+  <meta name="description" content="Readable marketer-facing visual for the Folloze outbound engine, signal loop, and launch controls.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #071428;
+      --muted: #4d6483;
+      --paper: #f3f9fd;
+      --panel: rgba(255, 255, 255, 0.9);
+      --line: rgba(7, 20, 40, 0.08);
+      --shadow: 0 26px 80px rgba(0, 75, 222, 0.1);
+      --primary-1: #00ccff;
+      --primary-2: #00a0ff;
+      --primary-3: #0077ff;
+      --primary-4: #004bde;
+      --secondary-1: #ff46ae;
+      --secondary-2: #7f45ff;
+      --secondary-3: #4414ad;
+      --neutral-0: #f3f9fd;
+      --neutral-2: #d8ecfa;
+      --neutral-3: #2c3d59;
+      --neutral-4: #1c293f;
+      --neutral-1000: #071428;
+      --warn-bg: #fff1df;
+      --warn-line: #f59e0b;
+      --good-bg: #e9fbf5;
+      --good-line: #0f766e;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(0, 204, 255, 0.16), transparent 28%),
+        radial-gradient(circle at top right, rgba(127, 69, 255, 0.14), transparent 32%),
+        linear-gradient(180deg, #eef7ff 0%, #ffffff 48%, #f3f9fd 100%);
+      font-family: "Open Sans", "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    .page {
+      width: min(1240px, calc(100vw - 40px));
+      margin: 24px auto 34px;
+    }
+
+    .hero,
+    .panel,
+    .closing-card {
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 34px 36px 30px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(216, 236, 250, 0.9));
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary-1), var(--primary-3) 45%, var(--secondary-2) 100%);
+      pointer-events: none;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -72px;
+      top: -72px;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 75, 222, 0.16), transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 10px;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--primary-4);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, h4 {
+      margin: 0;
+      font-family: "Open Sans", "Segoe UI", sans-serif;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    h1 {
+      max-width: 980px;
+      font-size: clamp(2.8rem, 4vw, 4.6rem);
+      line-height: 0.95;
+      margin-bottom: 14px;
+      color: var(--neutral-1000);
+    }
+
+    .lede {
+      max-width: 930px;
+      margin: 0;
+      color: var(--neutral-3);
+      font-size: 1.05rem;
+    }
+
+    .hero-pills {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .pill {
+      padding: 16px 16px 14px;
+      min-height: 118px;
+      border-radius: 22px;
+      border: 1px solid rgba(0, 75, 222, 0.09);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(243, 249, 253, 0.96));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    }
+
+    .pill strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .pill span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.93rem;
+      line-height: 1.45;
+    }
+
+    .pill-sourcing strong { color: var(--primary-2); }
+    .pill-execution strong { color: var(--primary-4); }
+    .pill-context strong { color: var(--secondary-1); }
+    .pill-controls strong { color: var(--secondary-2); }
+
+    .panel {
+      margin-top: 22px;
+      padding: 22px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(243, 249, 253, 0.86));
+    }
+
+    .panel-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .panel-head p {
+      margin: 6px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .dot-sourcing { background: var(--primary-1); }
+    .dot-execution { background: var(--primary-3); }
+    .dot-signal { background: var(--secondary-1); }
+    .dot-state { background: var(--secondary-2); }
+    .dot-controls { background: var(--secondary-3); }
+
+    .flow {
+      position: relative;
+      display: grid;
+      gap: 18px;
+      padding: 6px 0 0;
+    }
+
+    .flow::before {
+      content: "";
+      position: absolute;
+      left: 36px;
+      top: 26px;
+      bottom: 110px;
+      width: 2px;
+      background: linear-gradient(180deg, rgba(0, 160, 255, 0.16), rgba(0, 75, 222, 0.72), rgba(127, 69, 255, 0.26));
+    }
+
+    .stage {
+      position: relative;
+      display: grid;
+      grid-template-columns: 255px minmax(0, 1fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .stage-rail {
+      position: relative;
+      padding: 24px 18px 22px 58px;
+      border-radius: 24px;
+      border: 1px solid rgba(0, 119, 255, 0.14);
+      background: linear-gradient(180deg, rgba(216, 236, 250, 0.86), rgba(255, 255, 255, 0.96));
+      box-shadow: 0 16px 42px rgba(0, 75, 222, 0.08);
+    }
+
+    .stage-rail::before {
+      content: "";
+      position: absolute;
+      left: 18px;
+      top: 20px;
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      background: var(--primary-3);
+      box-shadow: 0 0 0 8px rgba(216, 236, 250, 0.96);
+    }
+
+    .stage-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: rgba(0, 75, 222, 0.08);
+      color: var(--primary-4);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .stage-rail h2 {
+      margin-top: 10px;
+      font-size: 2rem;
+      line-height: 1;
+      color: var(--neutral-1000);
+    }
+
+    .stage-rail p {
+      margin: 10px 0 0;
+      color: var(--neutral-3);
+      font-size: 0.96rem;
+    }
+
+    .stage-body {
+      padding: 18px;
+      border-radius: 24px;
+      border: 1px solid rgba(0, 75, 222, 0.08);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(243, 249, 253, 0.9));
+      box-shadow: 0 18px 48px rgba(0, 75, 222, 0.08);
+    }
+
+    .stage-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      padding: 16px 16px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(0, 75, 222, 0.08);
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 10px 24px rgba(0, 75, 222, 0.04);
+    }
+
+    .card h3 {
+      font-size: 1.12rem;
+      margin-bottom: 8px;
+    }
+
+    .mono {
+      font-family: "SFMono-Regular", "SF Mono", "IBM Plex Mono", "Menlo", monospace;
+      font-size: 0.92em;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .sourcing h3 { color: var(--primary-2); }
+    .execution h3 { color: var(--primary-4); }
+    .signal h3 { color: var(--secondary-1); }
+    .state h3 { color: var(--secondary-2); }
+    .control h3 { color: var(--secondary-3); }
+
+    ul.clean {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    ul.clean li {
+      position: relative;
+      padding-left: 16px;
+      color: var(--muted);
+      font-size: 0.94rem;
+      line-height: 1.45;
+    }
+
+    ul.clean li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.62em;
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: currentColor;
+      opacity: 0.38;
+      transform: translateY(-50%);
+    }
+
+    .band {
+      margin-top: 14px;
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px dashed rgba(127, 69, 255, 0.24);
+      background: rgba(127, 69, 255, 0.06);
+    }
+
+    .band strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--secondary-2);
+      font-size: 0.88rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .band p {
+      margin: 0;
+      color: var(--neutral-3);
+      font-size: 0.94rem;
+    }
+
+    .flowline {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .flow-step {
+      padding: 13px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(127, 69, 255, 0.14);
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .flow-step strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--secondary-3);
+      font-size: 0.94rem;
+    }
+
+    .flow-step span {
+      display: block;
+      color: var(--neutral-3);
+      font-size: 0.89rem;
+      line-height: 1.4;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .control-chip {
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(68, 20, 173, 0.14);
+    }
+
+    .control-chip strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--secondary-3);
+      font-size: 0.95rem;
+    }
+
+    .control-chip span {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .status-card {
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(0, 75, 222, 0.08);
+      background: rgba(255, 255, 255, 0.88);
+    }
+
+    .status-card.good {
+      background: linear-gradient(180deg, rgba(233, 251, 245, 0.94), rgba(255, 255, 255, 0.96));
+      border-color: rgba(15, 118, 110, 0.18);
+    }
+
+    .status-card.warn {
+      background: linear-gradient(180deg, rgba(255, 241, 223, 0.94), rgba(255, 255, 255, 0.96));
+      border-color: rgba(245, 158, 11, 0.22);
+    }
+
+    .status-card h3 {
+      margin-bottom: 8px;
+      font-size: 1.16rem;
+    }
+
+    .status-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .closing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .closing-card {
+      padding: 18px 18px 16px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(243, 249, 253, 0.92));
+      border-top: 4px solid var(--primary-3);
+    }
+
+    .closing-card:nth-child(2) {
+      border-top-color: var(--secondary-1);
+    }
+
+    .closing-card:nth-child(3) {
+      border-top-color: var(--secondary-2);
+    }
+
+    .closing-card h3 {
+      margin-bottom: 8px;
+      font-size: 1.16rem;
+    }
+
+    .closing-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    @media (max-width: 1080px) {
+      .hero-pills,
+      .closing-grid,
+      .stage-grid,
+      .control-grid,
+      .status-grid,
+      .flowline {
+        grid-template-columns: 1fr;
+      }
+
+      .stage {
+        grid-template-columns: 1fr;
+      }
+
+      .flow::before {
+        display: none;
+      }
+
+      .stage-rail {
+        padding-left: 26px;
+      }
+
+      .stage-rail::before {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <p class="eyebrow">Folloze Architecture Reference</p>
+          <h1>How the Folloze Outbound Engine Actually Works</h1>
+        </div>
+      </div>
+      <p class="lede">A readable call-ready outline of the current system: how contacts get sourced, how outbound runs, how Folloze engagement becomes signal memory, and what controls determine whether the engine is actually allowed to launch.</p>
+      <div class="hero-pills">
+        <div class="pill pill-sourcing">
+          <strong>Sourcing + research</strong>
+          <span>Apollo provides accounts and contacts. Research layers add company, persona, and timing context before copy is generated.</span>
+        </div>
+        <div class="pill pill-execution">
+          <strong>Execution spine</strong>
+          <span>The current live path is still a classic outbound engine: source, reveal, research, generate, enroll, and monitor.</span>
+        </div>
+        <div class="pill pill-context">
+          <strong>Context spine</strong>
+          <span>Salesforce Tasks, Folloze CSVs, and content metadata now feed a signal engine that interprets what buyers actually cared about.</span>
+        </div>
+        <div class="pill pill-controls">
+          <strong>Operational control</strong>
+          <span>The engine now distinguishes warming infrastructure from live sending, and it blocks enrollment when campaigns or mailboxes are not ready.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Workflow View</h2>
+          <p>This view is intentionally linear so it prints and talks through cleanly. The idea is to show the system as a sequence of layers, not a dense all-at-once architecture map.</p>
+        </div>
+        <ul class="legend">
+          <li><span><i class="dot dot-sourcing"></i>Sourcing and research</span></li>
+          <li><span><i class="dot dot-execution"></i>Outbound execution</span></li>
+          <li><span><i class="dot dot-signal"></i>Behavior and engagement signal</span></li>
+          <li><span><i class="dot dot-state"></i>State and follow-up intelligence</span></li>
+          <li><span><i class="dot dot-controls"></i>Launch and operator control</span></li>
+        </ul>
+      </div>
+
+      <div class="flow">
+        <div class="stage">
+          <div class="stage-rail">
+            <div class="stage-number">01</div>
+            <h2>Account Sourcing</h2>
+            <p>Start with who should enter the engine.</p>
+          </div>
+          <div class="stage-body">
+            <div class="stage-grid">
+              <div class="card sourcing">
+                <h3>Inputs</h3>
+                <ul class="clean">
+                  <li>Apollo account search against the ICP</li>
+                  <li>Buying-committee contacts by role and persona</li>
+                  <li>Account fit and priority scoring</li>
+                  <li>Sequence-family assignment in Neon</li>
+                </ul>
+              </div>
+              <div class="card sourcing">
+                <h3>What gets written</h3>
+                <ul class="clean">
+                  <li><strong>accounts</strong> and <strong>contacts</strong></li>
+                  <li><strong>campaign_assignments</strong></li>
+                  <li><strong>sequence_families</strong> routing</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage">
+          <div class="stage-rail">
+            <div class="stage-number">02</div>
+            <h2>Research + Payload Build</h2>
+            <p>Turn raw prospects into sendable copy inputs.</p>
+          </div>
+          <div class="stage-body">
+            <div class="stage-grid">
+              <div class="card execution">
+                <h3>Current execution path</h3>
+                <ul class="clean">
+                  <li><span class="mono">reveal_emails</span> finds verified addresses</li>
+                  <li><span class="mono">enrich_research</span> collects company and persona context</li>
+                  <li><span class="mono">build_payloads</span> generates T1 copy and static follow-up payload fields</li>
+                </ul>
+              </div>
+              <div class="card execution">
+                <h3>System output today</h3>
+                <p>The engine currently stores approved personalization payloads in Postgres and uses those as the direct input to Smartlead enrollment.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage">
+          <div class="stage-rail">
+            <div class="stage-number">03</div>
+            <h2>Outbound Transport</h2>
+            <p>Push approved leads into the delivery layer.</p>
+          </div>
+          <div class="stage-body">
+            <div class="stage-grid">
+              <div class="card execution">
+                <h3>What Smartlead does</h3>
+                <ul class="clean">
+                  <li>holds campaigns and sequences</li>
+                  <li>rotates across assigned inboxes</li>
+                  <li>tracks replies, clicks, and bounces</li>
+                  <li>acts as the mail transport layer</li>
+                </ul>
+              </div>
+              <div class="card execution">
+                <h3>Important architectural point</h3>
+                <p>Smartlead is no longer the strategy brain. The repo is moving toward using Smartlead only as transport plus telemetry, while the engine decides what follow-up should say.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage">
+          <div class="stage-rail">
+            <div class="stage-number">04</div>
+            <h2>Board Experience + Engagement Capture</h2>
+            <p>Folloze turns outbound traffic into observable first-party behavior.</p>
+          </div>
+          <div class="stage-body">
+            <div class="stage-grid">
+              <div class="card signal">
+                <h3>What the buyer does</h3>
+                <ul class="clean">
+                  <li>lands on a Folloze board from outbound</li>
+                  <li>views assets, spends time, clicks CTAs, revisits</li>
+                  <li>shows which topics, themes, and proof points resonate</li>
+                </ul>
+              </div>
+              <div class="card signal">
+                <h3>What the system can observe</h3>
+                <ul class="clean">
+                  <li>board visits and repeat visits</li>
+                  <li>item views and duration</li>
+                  <li>CTA clicks and anchor clicks</li>
+                  <li>account-level and multi-stakeholder engagement</li>
+                </ul>
+              </div>
+            </div>
+            <div class="band">
+              <strong>Why this matters</strong>
+              <p>This is the core differentiator. The engine is not just sending emails. It is using outbound to create first-party intent and behavioral evidence.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage">
+          <div class="stage-rail">
+            <div class="stage-number">05</div>
+            <h2>Signal Engine</h2>
+            <p>Normalize behavior into durable memory and follow-up inputs.</p>
+          </div>
+          <div class="stage-body">
+            <div class="stage-grid">
+              <div class="card state">
+                <h3>Inputs</h3>
+                <ul class="clean">
+                  <li>Salesforce Folloze Task ingestion</li>
+                  <li>Folloze People Engagement CSV snapshots</li>
+                  <li>Folloze content catalog and asset summaries</li>
+                  <li>email telemetry and research evidence</li>
+                </ul>
+              </div>
+              <div class="card state">
+                <h3>Durable state written</h3>
+                <ul class="clean">
+                  <li><strong>signal_events</strong></li>
+                  <li><strong>asset_catalog</strong></li>
+                  <li><strong>contact_signal_state</strong></li>
+                  <li><strong>account_signal_state</strong></li>
+                  <li><strong>outbound_briefs</strong></li>
+                </ul>
+              </div>
+            </div>
+            <div class="flowline">
+              <div class="flow-step">
+                <strong>Raw events</strong>
+                <span>board views, asset views, CTA clicks, replies</span>
+              </div>
+              <div class="flow-step">
+                <strong>Derived facts</strong>
+                <span>what changed, what resonated, what theme is forming</span>
+              </div>
+              <div class="flow-step">
+                <strong>Interest memory</strong>
+                <span>current contact and account state</span>
+              </div>
+              <div class="flow-step">
+                <strong>Outbound brief</strong>
+                <span>why now, angle, proof, CTA, send gate</span>
+              </div>
+              <div class="flow-step">
+                <strong>Follow-up copy</strong>
+                <span>eventual just-in-time T2 and T3 generation</span>
+              </div>
+              <div class="flow-step">
+                <strong>Outcome</strong>
+                <span>reply or engagement feeds back into memory</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage">
+          <div class="stage-rail">
+            <div class="stage-number">06</div>
+            <h2>Launch Controls</h2>
+            <p>Separate infrastructure readiness from actual sending.</p>
+          </div>
+          <div class="stage-body">
+            <div class="stage-grid">
+              <div class="card control">
+                <h3>Infrastructure prep</h3>
+                <ul class="clean">
+                  <li><span class="mono">warmup_smartlead_inboxes</span> turns on warmup and daily caps</li>
+                  <li><span class="mono">sync_smartlead_mailboxes</span> syncs live inbox state into Postgres</li>
+                  <li>campaign mailbox assignments can be reconciled without sending leads</li>
+                </ul>
+              </div>
+              <div class="card control">
+                <h3>Send gate</h3>
+                <ul class="clean">
+                  <li>engine pause file must allow sending</li>
+                  <li>sequence family must be active</li>
+                  <li>Smartlead campaign must be active, not paused or completed</li>
+                  <li>assigned mailboxes must be warmed and not too fresh</li>
+                </ul>
+              </div>
+            </div>
+            <div class="control-grid">
+              <div class="control-chip">
+                <strong>Pause layer</strong>
+                <span><span class="mono">ops/engine-paused.json</span> can block all enrollment.</span>
+              </div>
+              <div class="control-chip">
+                <strong>Campaign layer</strong>
+                <span>Even with good inboxes, paused Smartlead campaigns still block launch.</span>
+              </div>
+              <div class="control-chip">
+                <strong>Mailbox layer</strong>
+                <span>Fresh inboxes may warm successfully but still be intentionally blocked from cold enrollment.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="status-grid">
+      <article class="status-card good">
+        <h3>What is live now</h3>
+        <p>The sourcing, research, payload generation, Smartlead plumbing, Salesforce/Folloze signal ingestion, signal-state derivation, outbound brief gating, mailbox sync, and inbox warmup automation are all built and operating.</p>
+      </article>
+      <article class="status-card warn">
+        <h3>What is still transitioning</h3>
+        <p>The engine is not fully at “signal-driven autonomous follow-up” yet. The big next step is replacing static T2/T3 copy with just-in-time follow-up generation from current signal state.</p>
+      </article>
+    </section>
+
+    <section class="closing-grid">
+      <article class="closing-card">
+        <h3>Simple one-liner</h3>
+        <p>The outbound engine uses targeted outreach to drive buyers into a Folloze experience, then turns that engagement into stronger follow-up and account intelligence.</p>
+      </article>
+      <article class="closing-card">
+        <h3>What makes it different</h3>
+        <p>It is not just an email sequencer. It is an outbound system that is being rebuilt around first-party engagement memory.</p>
+      </article>
+      <article class="closing-card">
+        <h3>Best way to frame it on the call</h3>
+        <p>Lead with the execution spine first, then explain that the signal engine is the layer that makes later touches smarter and more defensible.</p>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
